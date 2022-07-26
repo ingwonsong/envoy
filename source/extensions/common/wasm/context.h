@@ -332,17 +332,26 @@ protected:
   struct GrpcCallClientHandler : public Grpc::RawAsyncRequestCallbacks {
     // Grpc::AsyncRequestCallbacks
     void onCreateInitialMetadata(Http::RequestHeaderMap& initial_metadata) override {
-      context_->onGrpcCreateInitialMetadata(token_, initial_metadata);
+      auto ctx = context_.lock();
+      if (ctx != nullptr) {
+        ctx->onGrpcCreateInitialMetadata(token_, initial_metadata);
+      }
     }
     void onSuccessRaw(::Envoy::Buffer::InstancePtr&& response, Tracing::Span& /* span */) override {
-      context_->onGrpcReceiveWrapper(token_, std::move(response));
+      auto ctx = context_.lock();
+      if (ctx != nullptr) {
+        ctx->onGrpcReceiveWrapper(token_, std::move(response));
+      }
     }
     void onFailure(Grpc::Status::GrpcStatus status, const std::string& message,
                    Tracing::Span& /* span */) override {
-      context_->onGrpcCloseWrapper(token_, status, message);
+      auto ctx = context_.lock();
+      if (ctx != nullptr) {
+        ctx->onGrpcCloseWrapper(token_, status, message);
+      }
     }
 
-    Context* context_;
+    std::weak_ptr<Context> context_;
     uint32_t token_;
     Grpc::RawAsyncClientSharedPtr client_;
     Grpc::AsyncRequest* request_;
